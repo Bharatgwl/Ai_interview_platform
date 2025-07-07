@@ -1,0 +1,16 @@
+// {
+//   "compilerOptions": {
+//     "baseUrl": ".", // important
+//     "paths": {
+//       "@/*": ["src/*"]
+//     }
+//   },
+//   "include": ["src"]
+// }
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
