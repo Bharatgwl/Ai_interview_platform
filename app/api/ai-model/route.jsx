@@ -35,40 +35,69 @@ import { QUESTION_PROMPT } from "@/services/Constant";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
-    const { jobPosition, jobDescription, duration, type } = await req.json();
-
-    const Final_prompt = QUESTION_PROMPT
-        .replace('{{jobTitle}}', jobPosition)
-        .replace('{{jobDescription}}', jobDescription)
-        .replace('{{type}}', type)
-        .replace('{{duration}}', duration);
-
     try {
+        const { jobPosition, jobDescription, duration, type } = await req.json();
+
+        // Input validation
+        if (!jobPosition?.trim()) {
+            return NextResponse.json({ 
+                error: "Job position is required." 
+            }, { status: 400 });
+        }
+        if (!jobDescription?.trim()) {
+            return NextResponse.json({ 
+                error: "Job description is required." 
+            }, { status: 400 });
+        }
+        if (!duration || isNaN(duration)) {
+            return NextResponse.json({ 
+                error: "Valid duration is required." 
+            }, { status: 400 });
+        }
+        if (!type?.trim()) {
+            return NextResponse.json({ 
+                error: "Interview type is required." 
+            }, { status: 400 });
+        }
+
+        const Final_prompt = QUESTION_PROMPT
+            .replace('{{jobTitle}}', jobPosition)
+            .replace('{{jobDescription}}', jobDescription)
+            .replace('{{type}}', type)
+            .replace('{{duration}}', duration);
+
         const openai = new OpenAI({
             apiKey: process.env.API_KEY,
             baseURL: "https://openrouter.ai/api/v1",
         });
 
         const completion = await openai.chat.completions.create({
-            model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+            model: "deepseek/deepseek-r1-0528-qwen3-8b",
             messages: [{ role: "user", content: Final_prompt }],
         });
 
-        const rawContent = completion.choices[0].message.content;
+        if (!completion.choices[0]?.message?.content) {
+            throw new Error("No content in API response");
+        }
 
-        // 🧼 Clean the content: remove ```json and ```
+        const rawContent = completion.choices[0].message.content;
         const cleanedContent = rawContent
             .replace(/```json|```/g, '')
             .trim();
 
-        // ✅ Parse it safely
         const parsed = JSON.parse(cleanedContent);
 
-        // ✅ Return only the questions array
+        if (!parsed.interviewQuestions || !Array.isArray(parsed.interviewQuestions)) {
+            throw new Error("Invalid response format: missing interviewQuestions array");
+        }
+
         return NextResponse.json({ interviewQuestions: parsed.interviewQuestions });
 
     } catch (e) {
         console.error("AI Parse Error:", e.message);
-        return NextResponse.json({ error: "Failed to parse AI response." }, { status: 500 });
+        return NextResponse.json({ 
+            error: "Failed to parse AI response.",
+            details: process.env.NODE_ENV === 'development' ? e.message : undefined
+        }, { status: 500 });
     }
 }

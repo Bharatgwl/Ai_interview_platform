@@ -6,7 +6,7 @@ export async function POST(req) {
   try {
     const { conversation } = await req.json();
 
-    if (!conversation || conversation.length === 0) {
+    if (!conversation || !Array.isArray(conversation) || conversation.length === 0) {
       return NextResponse.json({
         feedback: {
           rating: null,
@@ -28,23 +28,18 @@ export async function POST(req) {
       model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
       messages: [{ role: "user", content: FINAL_PROMT }],
     });
+    
+    if (!completion.choices[0]?.message?.content) {
+      throw new Error("No content in API response");
+    }
+    
     return NextResponse.json(completion.choices[0].message); 
-    // const rawContent = completion.choices[0].message.content;
-
-    // // Clean JSON output: remove ```json and ``` if present
-    // const cleanedContent = rawContent
-    //   .replace(/```json|```/g, "")
-    //   .trim();
-
-    // const parsedFeedback = JSON.parse(cleanedContent);
-
-    // return NextResponse.json(parsedFeedback, {
-    //   status: 200,
-    //   headers: { "Content-Type": "application/json" },
-    // });
-
+   
   } catch (e) {
     console.error("AI Parse Error:", e.message);
-    return NextResponse.json({ error: "Failed to parse AI response." }, { status: 500 });
+    return NextResponse.json({ 
+      error: "Failed to parse AI response.",
+      details: process.env.NODE_ENV === 'development' ? e.message : undefined
+    }, { status: 500 });
   }
 }

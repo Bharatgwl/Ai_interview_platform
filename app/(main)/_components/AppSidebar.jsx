@@ -1,75 +1,3 @@
-// 'use client';
-// import Link from 'next/link';
-// import Image from 'next/image';
-// import {
-//     Sidebar,
-//     SidebarContent,
-//     SidebarFooter,
-//     SidebarGroup,
-//     SidebarHeader,
-//     SidebarMenuButton,
-//     SidebarMenuItem,
-//     SidebarMenu,
-// } from "@/components/ui/sidebar"
-// import { Button } from '@/components/ui/button';
-
-// import { Plus } from "lucide-react"
-// import { SideBarOptions } from '@/services/Constant';
-// import { usePathname } from 'next/navigation';
-// export function AppSidebar() {
-//     const path = usePathname();
-//     console.log(path)
-//     return (
-//         <Sidebar>
-//             <SidebarHeader className="flex  items-center !mt-5">
-//                 <Image
-//                     src={"/logo.png"}
-//                     alt="logo"
-//                     width={200}
-//                     height={100}
-//                     className="w-[150px] mb-6"
-//                 />
-
-//                 <Button className="!p-2 w-[250px] !mt-3" >
-//                     <Plus />
-//                     Create New Interview
-//                 </Button>
-//             </SidebarHeader>
-//             <SidebarContent>
-//                 <SidebarGroup >
-//                     <SidebarContent>
-//                         <SidebarMenu>
-//                             {SideBarOptions.map((option, index) => (
-//                                 <SidebarMenuItem key={index} className='!p-1 !mt-2'>
-//                                     <SidebarMenuButton asChild className='!p-5'>
-//                                         {/* <Link href={option.path}>
-//                                             <option.icon />
-//                                             <span className={`text-[16px] ${path == option.path && "text-blue-500"}`}>
-//                                                 {option.name}
-//                                             </span>
-//                                         </Link> */}<Link
-//                                             href={option.path}
-//                                             className={`flex items-center gap-3 rounded-md transition-colors duration-200
-//               ${path === option.path ? 'bg-blue-100 ' : 'text-gray-700 !hover:bg-gray-800'}`}
-//                                         >
-//                                             <option.icon className="w-5 h-5" />
-//                                             <span className={`text-[16px] font-medium`}>
-//                                                 {option.name}
-//                                             </span>
-//                                         </Link>
-
-//                                     </SidebarMenuButton>
-//                                 </SidebarMenuItem>
-//                             ))}
-//                         </SidebarMenu>
-//                     </SidebarContent>
-//                 </SidebarGroup>
-//             </SidebarContent>
-//             <SidebarFooter />
-//         </Sidebar>
-//     )
-// }
-
 'use client';
 
 import Link from 'next/link';
@@ -127,8 +55,8 @@ export function AppSidebar() {
                                     <Link
                                         href={option.path}
                                         className={`!p-2 flex items-center gap-3 rounded-md transition-colors duration-200
-                                                    ${path === option.path ? 'bg-blue-100 ' : 'text-gray-700 !hover:bg-gray-800'}`}
-                                    >
+                                                    ${path === option.path ? 'bg-blue-100 ' : '!text-gray-700 hover:!bg-gray-200'}`}
+                                    >-
                                         <option.icon className="!w-5 !h-5" />
                                         <span className="!text-sm">{option.name}</span>
                                     </Link>

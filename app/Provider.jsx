@@ -2,7 +2,6 @@
 import { UserDetailContext } from '@/context/UserDetailContext';
 import { InterviewDataProvider } from '@/context/InterviewDataContext';
 import { supabase } from '@/services/supabaseClient'
-import { ClockFading } from 'lucide-react';
 import React, { useContext, useEffect, useState } from 'react'
 
 function Provider({ children } = {}) {
@@ -46,7 +45,7 @@ function Provider({ children } = {}) {
                 } else {
                     console.log("User inserted:", data);
                 }
-                setUser[data];
+                setUser(data[0]);
                 return;
 
 

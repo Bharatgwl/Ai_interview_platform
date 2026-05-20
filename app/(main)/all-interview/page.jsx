@@ -4,9 +4,9 @@ import { Camera, AnotherIcon, Video } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/services/supabaseClient';
 import { useUser } from '@/app/Provider';
-import InterviewCard from './InterviewCard';
+import InterviewCard from '../dashboard/_component/InterviewCard';
 import Link from 'next/link';
-function LatestInterviewsList() {
+function page() {
     const [interviewList, setInterviewList] = useState([]);
     const { user } = useUser()
 
@@ -18,16 +18,16 @@ function LatestInterviewsList() {
             .from('Interviews')
             .select('*')
             .eq('userEmail', user?.email)
-            .order('id', {ascending:false})
+            .order('id', { ascending: false })
             .limit(6)
         console.log(Interviews)
         setInterviewList(Interviews)
     }
-   
-   
+
+
     return (
         <div className='!my-5'>
-            <h2 className='font-bold text-2xl'>Previously created interviews</h2>
+            <h2 className='font-bold text-2xl'>All Previously Created Interviews</h2>
 
             {interviewList?.length == 0 &&
                 <div className='flex flex-col justify-center items-center !h-40 bg-gray-200 rounded-lg'>
@@ -35,7 +35,7 @@ function LatestInterviewsList() {
                     <h2 className='!mt-3 font-semibold text-gray-500'>No Interviews Created Yet!</h2>
                     <Link href="/dashboard/create-interview">
                         <Button className='!mt-1 !p-3 cursor-pointer'>+ Create New Interview</Button>
-                    </Link>                
+                    </Link>
                 </div>
             }
             {interviewList &&
@@ -49,4 +49,5 @@ function LatestInterviewsList() {
     )
 }
 
-export default LatestInterviewsList
+
+export default page
