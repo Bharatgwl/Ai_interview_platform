@@ -8,14 +8,17 @@ import { toast } from 'sonner';
 
 function InterviewCard({ interview }) {
         const { user } = useUser()
+        const getInterviewUrl = () => {
+                const appUrl = process.env.NEXT_PUBLIC_HOST_URL || window.location.origin;
+                return `${appUrl}/interview/${interview?.interview_id}`;
+        };
         const copyLink = () => {
-                const url = process.env.NEXT_PUBLIC_HOST_URL + "/" + interview?.interview_id;
-                navigator.clipboard.writeText(url);
+                navigator.clipboard.writeText(getInterviewUrl());
                 toast('Copied')
         }
         console.log(interview)
         const onSend = () => {
-                const url = `${process.env.NEXT_PUBLIC_HOST_URL}/${interview?.interview_id}`;
+                const url = getInterviewUrl();
                 const subject = encodeURIComponent("Interview Link");
                 const body = encodeURIComponent(`Here is the interview link: ${url}`);
                 window.location.href = `mailto:?subject=${subject}&body=${body}`;

@@ -25,7 +25,7 @@ export async function POST(req) {
     });
 
     const completion = await openai.chat.completions.create({
-      model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+      model: process.env.OPENROUTER_MODEL || "openrouter/free",
       messages: [{ role: "user", content: FINAL_PROMT }],
     });
     

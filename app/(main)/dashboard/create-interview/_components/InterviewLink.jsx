@@ -15,11 +15,9 @@ function InterviewLink({ interview_id, formData }) {
         month: 'short',
         day: 'numeric',
     });
-    // const final_url = "https://bird-innocent-sunbeam.ngrok-free.app" + '/' + interview_id
-    const final_url = "http://localhost:3001/interview" + '/' + interview_id
-    // const final_url = "https://688657e3c96db7c13f184199--intellih.netlify.app" + '/' + interview_id
+    const appUrl = process.env.NEXT_PUBLIC_HOST_URL || window.location.origin;
+    const final_url = `${appUrl}/interview/${interview_id}`;
     const getUrl = () => {
-        let url = process.env.NEXT_PUBLIC_HOST_URL
         return final_url
     }
 

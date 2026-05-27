@@ -54,7 +54,8 @@ export async function POST(req) {
                 error: "Valid duration is required." 
             }, { status: 400 });
         }
-        if (!type?.trim()) {
+        const interviewType = Array.isArray(type) ? type.join(", ") : type;
+        if (!interviewType?.trim()) {
             return NextResponse.json({ 
                 error: "Interview type is required." 
             }, { status: 400 });
@@ -63,7 +64,7 @@ export async function POST(req) {
         const Final_prompt = QUESTION_PROMPT
             .replace('{{jobTitle}}', jobPosition)
             .replace('{{jobDescription}}', jobDescription)
-            .replace('{{type}}', type)
+            .replace('{{type}}', interviewType)
             .replace('{{duration}}', duration);
 
         const openai = new OpenAI({
@@ -72,7 +73,7 @@ export async function POST(req) {
         });
 
         const completion = await openai.chat.completions.create({
-            model: "deepseek/deepseek-r1-0528-qwen3-8b",
+            model: process.env.OPENROUTER_MODEL || "openrouter/free",
             messages: [{ role: "user", content: Final_prompt }],
         });
 
