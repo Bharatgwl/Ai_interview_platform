@@ -29,6 +29,13 @@ function StartInterview() {
       GenerateFeedback();
     }
   }, [isCallEnded]);
+
+  useEffect(() => {
+    if (!key) {
+      toast.error("Missing Vapi public key. Add NEXT_PUBLIC_VAPI_API_KEY in Vercel.");
+    }
+  }, [key]);
+
   // Initialize Vapi and register listeners
   useEffect(() => {
     if (!key || vapiRef.current) return;
@@ -45,6 +52,10 @@ function StartInterview() {
 
       // GenerateFeedback();
     };
+    const handleError = (error) => {
+      console.error("Vapi error:", error);
+      toast.error("Unable to start the interview call. Check the Vapi public key in Vercel.");
+    };
     const handleMessage = (message) => {
       console.log("Vapi msg", message?.conversation);
       if (message?.conversation) {
@@ -57,6 +68,7 @@ function StartInterview() {
     vapi.on("speech-start", handleSpeechStart);
     vapi.on("speech-end", handleSpeechEnd);
     vapi.on("call-end", handleCallEnd);
+    vapi.on("error", handleError);
     vapi.on("message", handleMessage);
 
     // Cleanup listeners on unmount
@@ -65,6 +77,7 @@ function StartInterview() {
       vapi.off("speech-start", handleSpeechStart);
       vapi.off("speech-end", handleSpeechEnd);
       vapi.off("call-end", handleCallEnd);
+      vapi.off("error", handleError);
       vapi.off("message", handleMessage);
     };
   }, [key]);
