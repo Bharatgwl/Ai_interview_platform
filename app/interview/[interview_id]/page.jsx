@@ -8,6 +8,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/services/supabaseClient';
 import { toast } from "sonner"
 import { InterviewDataContext } from '@/context/InterviewDataContext';
+import axios from 'axios';
 
 function Interview() {
 
@@ -63,7 +64,19 @@ function Interview() {
       .select('*')
 
       .eq('interview_id', interview_id)
-    console.log(Interviews[0])
+    if (error || !Interviews?.[0]) {
+      setLoading(false);
+      toast("Incorrect interview Link");
+      return;
+    }
+
+    try {
+      await axios.post('/api/interviews/voice-allowance', { interview_id });
+    } catch (error) {
+      setLoading(false);
+      toast.error(error?.response?.data?.error || "This interview cannot start right now.");
+      return;
+    }
 
 
     setInterviewInfo({

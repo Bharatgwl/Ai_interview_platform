@@ -1,66 +1,72 @@
-// import OpenAI from "openai";
-// import { QUESTION_PROMPT } from "@/services/Constant";
-// import { NextResponse } from "next/server";
-
-// export async function POST(req) {
-//     const { jobPosition, jobDescription, duration, type } = await req.json();
-//     const Final_prompt = QUESTION_PROMPT.replace('{{jobTitle}}', jobPosition).replace('{{jobDescription}}', jobDescription).replace('{{type}}', type).replace('{{duration}}', duration)
-//     console.log("Final_prompt: "+Final_prompt)
-//     try {
-//         const OPEN_ROUTER_API_KEY= process.env.API_KEY
-//         const openai = new OpenAI({
-//             apiKey: OPEN_ROUTER_API_KEY,
-//             baseURL: "https://openrouter.ai/api/v1",
-//         })
-//         const completion = await openai.chat.completions.create({
-
-//             // model: "${nvidia/llama-3.1-nemotron-ultra-253b-v1:free}",
-//             model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
-
-//             messages: [
-//                 { role: "user", content: Final_prompt }
-//             ],
-//             // response_format:'json'
-//         })
-//         console.log(completion.choices[0].message)
-//         return NextResponse.json(completion.choices[0].message)
-//     }
-//     catch (e) {
-//         console.log(e);
-//         return NextResponse.json(e)
-//     }
-// }
 import OpenAI from "openai";
 import { QUESTION_PROMPT } from "@/services/Constant";
 import { NextResponse } from "next/server";
+import {
+    getClientIp,
+    getServerSupabase,
+    isAllowedOrigin,
+    jsonError,
+    parseJsonObject,
+    rateLimit,
+    requireSupabaseUser,
+    validateQuestionPayload,
+    withTimeout,
+} from "@/lib/apiSecurity";
+import { ensureQuestionCredits, spendQuestionCredit } from "@/lib/billing";
+
+const OPENROUTER_TIMEOUT_MS = 30000;
 
 export async function POST(req) {
     try {
-        const { jobPosition, jobDescription, duration, type } = await req.json();
-
-        // Input validation
-        if (!jobPosition?.trim()) {
-            return NextResponse.json({ 
-                error: "Job position is required." 
-            }, { status: 400 });
-        }
-        if (!jobDescription?.trim()) {
-            return NextResponse.json({ 
-                error: "Job description is required." 
-            }, { status: 400 });
-        }
-        if (!duration || isNaN(duration)) {
-            return NextResponse.json({ 
-                error: "Valid duration is required." 
-            }, { status: 400 });
-        }
-        const interviewType = Array.isArray(type) ? type.join(", ") : type;
-        if (!interviewType?.trim()) {
-            return NextResponse.json({ 
-                error: "Interview type is required." 
-            }, { status: 400 });
+        if (!isAllowedOrigin(req)) {
+            return jsonError("This origin is not allowed.", 403);
         }
 
+        if (!process.env.API_KEY) {
+            return jsonError("AI provider is not configured.", 500);
+        }
+
+        const supabase = getServerSupabase();
+        const auth = await requireSupabaseUser(req, supabase);
+        if (auth.error) return auth.error;
+
+        const body = await req.json();
+        const validation = validateQuestionPayload(body);
+        if (validation.error) return jsonError(validation.error, 400);
+
+        const userEmail = auth.user.email;
+        const userLimiter = await rateLimit({
+            req,
+            supabase,
+            scope: "ai-model:user",
+            key: userEmail,
+            userEmail,
+            limit: 5,
+            windowMs: 10 * 60 * 1000,
+        });
+
+        if (!userLimiter.allowed) {
+            return jsonError("Too many question generations. Please wait a few minutes.", 429);
+        }
+
+        const ipLimiter = await rateLimit({
+            req,
+            supabase,
+            scope: "ai-model:ip",
+            key: getClientIp(req),
+            userEmail,
+            limit: 20,
+            windowMs: 10 * 60 * 1000,
+        });
+
+        if (!ipLimiter.allowed) {
+            return jsonError("Too many requests from this network. Please try again later.", 429);
+        }
+
+        const creditCheck = await ensureQuestionCredits({ supabase, email: userEmail, cost: 1 });
+        if (creditCheck.error) return creditCheck.error;
+
+        const { jobPosition, jobDescription, duration, interviewType } = validation.data;
         const Final_prompt = QUESTION_PROMPT
             .replace('{{jobTitle}}', jobPosition)
             .replace('{{jobDescription}}', jobDescription)
@@ -72,33 +78,48 @@ export async function POST(req) {
             baseURL: "https://openrouter.ai/api/v1",
         });
 
-        const completion = await openai.chat.completions.create({
-            model: process.env.OPENROUTER_MODEL || "openrouter/free",
-            messages: [{ role: "user", content: Final_prompt }],
+        const completion = await withTimeout(
+            openai.chat.completions.create({
+                model: process.env.OPENROUTER_MODEL || "openrouter/free",
+                messages: [{ role: "user", content: Final_prompt }],
+                temperature: 0.4,
+                max_tokens: 1800,
+            }),
+            OPENROUTER_TIMEOUT_MS,
+            "The AI provider timed out."
+        );
+
+        const rawContent = completion.choices[0]?.message?.content;
+        if (!rawContent) {
+            throw new Error("No content in AI response.");
+        }
+
+        const parsed = parseJsonObject(rawContent);
+        if (!parsed.interviewQuestions || !Array.isArray(parsed.interviewQuestions)) {
+            throw new Error("Invalid response format: missing interviewQuestions array.");
+        }
+
+        const remainingCredits = await spendQuestionCredit({
+            supabase,
+            userRow: creditCheck.userRow,
+            cost: 1,
+            metadata: {
+                jobPosition,
+                duration,
+                interviewType,
+            },
         });
 
-        if (!completion.choices[0]?.message?.content) {
-            throw new Error("No content in API response");
-        }
-
-        const rawContent = completion.choices[0].message.content;
-        const cleanedContent = rawContent
-            .replace(/```json|```/g, '')
-            .trim();
-
-        const parsed = JSON.parse(cleanedContent);
-
-        if (!parsed.interviewQuestions || !Array.isArray(parsed.interviewQuestions)) {
-            throw new Error("Invalid response format: missing interviewQuestions array");
-        }
-
-        return NextResponse.json({ interviewQuestions: parsed.interviewQuestions });
+        return NextResponse.json({
+            interviewQuestions: parsed.interviewQuestions.slice(0, 15),
+            usage: {
+                remainingCredits,
+                rateLimitRemaining: userLimiter.remaining,
+            },
+        });
 
     } catch (e) {
-        console.error("AI Parse Error:", e.message);
-        return NextResponse.json({ 
-            error: "Failed to parse AI response.",
-            details: process.env.NODE_ENV === 'development' ? e.message : undefined
-        }, { status: 500 });
+        console.error("Question generation error:", e.message);
+        return jsonError("Failed to generate interview questions.", 500, e.message);
     }
 }

@@ -4,8 +4,7 @@ import { useEffect, useContext, useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { InterviewDataContext } from '@/context/InterviewDataContext';
-import { useUser } from '@/app/Provider';
-import { Timer, Mic, Phone } from 'lucide-react';
+import { Timer, Mic, MicOff, Phone, Sparkles, Volume2 } from 'lucide-react';
 import Vapi from '@vapi-ai/web';
 import { toast } from 'sonner';
 import axios from 'axios';
@@ -16,16 +15,21 @@ import TimerComponent from './_components/TimerComponent';
 function StartInterview() {
   const key = process.env.NEXT_PUBLIC_VAPI_API_KEY;
   const vapiRef = useRef(null);
+  const callStartedRef = useRef(false);
+  const feedbackStartedRef = useRef(false);
+  const callStartedAtRef = useRef(null);
+  const voiceUsageRecordedRef = useRef(false);
+  const { interviewInfo } = useContext(InterviewDataContext);
   const [isCallEnded, setIsCallEnded] = useState(false);
-  const { interviewInfo, setInterviewInfo } = useContext(InterviewDataContext);
-  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [conversation, setConversation] = useState([]);
   const { interview_id } = useParams();
-  const { user } = useUser();
   const router = useRouter();
-  // Add this entire block
+
   useEffect(() => {
-    if (isCallEnded) {
+    if (isCallEnded && !feedbackStartedRef.current) {
+      feedbackStartedRef.current = true;
       GenerateFeedback();
     }
   }, [isCallEnded]);
@@ -36,30 +40,40 @@ function StartInterview() {
     }
   }, [key]);
 
-  // Initialize Vapi and register listeners
   useEffect(() => {
     if (!key || vapiRef.current) return;
 
     const vapi = new Vapi(key);
     vapiRef.current = vapi;
 
-    const handleCallStart = () => toast("Call Connected...");
-    const handleSpeechStart = () => setIsUserSpeaking(true);
-    const handleSpeechEnd = () => setIsUserSpeaking(false);
+    const handleCallStart = () => {
+      callStartedAtRef.current = Date.now();
+      toast("Interview connected");
+    };
+    const handleSpeechStart = () => setIsAiSpeaking(true);
+    const handleSpeechEnd = () => setIsAiSpeaking(false);
     const handleCallEnd = () => {
-      toast("Interview ended.");
-      setIsCallEnded(true); // ✅ Trigger feedback generation
-
-      // GenerateFeedback();
+      setIsAiSpeaking(false);
+      callStartedRef.current = false;
+      setIsCallEnded(true);
     };
     const handleError = (error) => {
+      const isMeetingEnded =
+        error?.errorMsg === "Meeting has ended" ||
+        error?.error?.msg === "Meeting has ended" ||
+        error?.error?.type === "ejected";
+
+      if (isMeetingEnded) {
+        setIsAiSpeaking(false);
+        callStartedRef.current = false;
+        return;
+      }
+
       console.error("Vapi error:", error);
-      toast.error("Unable to start the interview call. Check the Vapi public key in Vercel.");
+      toast.error("Unable to start the interview call. Check the Vapi key and assistant permissions.");
     };
     const handleMessage = (message) => {
-      console.log("Vapi msg", message?.conversation);
       if (message?.conversation) {
-        console.log("message.conversation", message.conversation)
         setConversation(message.conversation);
       }
     };
@@ -71,7 +85,6 @@ function StartInterview() {
     vapi.on("error", handleError);
     vapi.on("message", handleMessage);
 
-    // Cleanup listeners on unmount
     return () => {
       vapi.off("call-start", handleCallStart);
       vapi.off("speech-start", handleSpeechStart);
@@ -82,13 +95,6 @@ function StartInterview() {
     };
   }, [key]);
 
-  // Start the interview when info is ready
-  useEffect(() => {
-    if (interviewInfo && vapiRef.current) {
-      startCall();
-    }
-  }, [interviewInfo]);
-
   const startCall = useCallback(() => {
     const questions = interviewInfo?.interviewData?.Questions
       ?.map((item) => item?.question)
@@ -97,6 +103,9 @@ function StartInterview() {
 
     const assistantOptions = {
       name: "AI Recruiter",
+      customerJoinTimeoutSeconds: 60,
+      silenceTimeoutSeconds: 600,
+      endCallFunctionEnabled: false,
       firstMessage: `Hi ${interviewInfo?.userName}, how are you? Ready for your interview on ${interviewInfo?.interviewData?.jobPosition}?`,
       transcriber: {
         provider: "deepgram",
@@ -114,28 +123,12 @@ function StartInterview() {
           {
             role: "system",
             content: `
-    You are an AI voice assistant conducting interviews.
-    Your job is to ask candidates provided interview questions, assess their responses.
-    Begin the conversation with a friendly introduction, setting a relaxed yet professional tone. Example:
-    "Hey there! Welcome to your `+ interviewInfo?.interviewData?.jobPosition + ` interview. Let’s get started with a few questions!"
-    Ask one question at a time and wait for the candidate’s response before proceeding. Keep the questions clear and concise. Below Are the questions ask one by one:
-    Questions: `+ questions + `
-    If the candidate struggles, offer hints or rephrase the question without giving away the answer. Example:
-    "Need a hint? Think about how React tracks component updates!"
-    Provide brief, encouraging feedback after each answer. Example:
-    "Nice! That’s a solid answer."
-    "Hmm, not quite! Want to try again?"
-    Keep the conversation natural and engaging—use casual phrases like "Alright, next up..." or "Let’s tackle a tricky one!"
-    After 5-7 questions, wrap up the interview smoothly by summarizing their performance. Example:
-    "That was great! You handled some tough questions well. Keep sharpening your skills!"
-    End on a positive note:
-    "Thanks for chatting! Hope to see you crushing projects soon!"
-    Key Guidelines:
-     Be friendly, engaging, and witty
-     Keep responses short and natural, like a real conversation
-     Adapt based on the candidate’s confidence level
-     Ensure the interview remains focused on React
-    `.trim(),
+You are an AI voice assistant conducting interviews.
+Ask one question at a time and wait for the candidate response before continuing.
+Keep the tone friendly, concise, and professional.
+Questions: ${questions}
+After the final question, thank the candidate and close the interview.
+            `.trim(),
           },
         ],
       },
@@ -144,119 +137,150 @@ function StartInterview() {
     vapiRef.current?.start(assistantOptions);
   }, [interviewInfo]);
 
+  useEffect(() => {
+    if (interviewInfo && vapiRef.current && !callStartedRef.current) {
+      callStartedRef.current = true;
+      startCall();
+    }
+  }, [interviewInfo, startCall]);
+
+  const toggleMute = () => {
+    const nextMuted = !isMuted;
+    vapiRef.current?.setMuted(nextMuted);
+    setIsMuted(nextMuted);
+  };
 
   const StopInterview = () => {
-    setIsUserSpeaking(false);
-    toast("Disconnecting...");
+    setIsAiSpeaking(false);
+    toast("Ending interview...");
     vapiRef.current?.stop();
+    callStartedRef.current = false;
     setIsCallEnded(true);
   };
 
   const GenerateFeedback = async () => {
-    const hasUserMessage = conversation.some(msg => msg.role === 'user');
-    if (!hasUserMessage) { // or whatever threshold you want
+    if (!voiceUsageRecordedRef.current && callStartedAtRef.current) {
+      voiceUsageRecordedRef.current = true;
+      const elapsedSeconds = Math.max(Math.round((Date.now() - callStartedAtRef.current) / 1000), 1);
+      axios.post('/api/interviews/voice-usage', {
+        interview_id,
+        elapsedSeconds,
+      }).catch((error) => {
+        console.error("Voice usage tracking failed:", error?.response?.data || error);
+      });
+    }
+
+    const hasUserMessage = conversation.some((msg) => msg.role === 'user');
+    if (!hasUserMessage) {
       toast.error("No meaningful interview data to generate feedback.");
       router.replace(`/interview/${interview_id}/notcompleted`);
       return;
     }
+
     try {
       const result = await axios.post('/api/ai-feedback', {
-        conversation: conversation
+        conversation,
+        interview_id,
       });
       const content = result?.data?.content;
       const FINAL_CONTENT = content.replace(/```json|```/g, '').trim();
       let feedbackParsed;
+
       try {
         feedbackParsed = JSON.parse(FINAL_CONTENT);
       } catch (err) {
-        console.error("⚠️ JSON parsing failed. Storing raw content as feedback.");
-        console.log(FINAL_CONTENT)
-        feedbackParsed = { raw_feedback: FINAL_CONTENT }; // fallback format
+        feedbackParsed = { raw_feedback: FINAL_CONTENT };
       }
-      console.log("feedbackParsed", feedbackParsed)
-      const { data, error } = await supabase
+
+      await supabase
         .from('interview-feedback')
         .insert([
           {
             userName: interviewInfo?.userName,
             userEmail: interviewInfo?.userEmail,
-            interview_id: interview_id,
+            interview_id,
             feedback: feedbackParsed,
             recommended: false,
           },
-        ])
-        .select();
-      console.log("✅ Feedback stored:", data);
+        ]);
+
       router.replace(`/interview/${interview_id}/completed`);
     } catch (error) {
-      console.error("❌ Feedback Generation Error:", error);
+      console.error("Feedback Generation Error:", error);
       toast.error("Error generating feedback.");
     }
   };
 
   return (
-    <div className="!p-20 lg:!px-48 xl:px-56 bg-gray-100">
-      <h2 className="text-xl font-bold flex justify-between">
-        AI Interview Session
-        <span className="flex gap-2 items-center">
-          <Timer />
-          <TimerComponent start={true} />
-        </span>
-      </h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 !mt-5 justify-items-center">
-        {/* AI Recruiter */}
-        <div className="bg-white w-full max-w-sm h-72 rounded-lg border shadow-sm flex flex-col gap-3 items-center justify-center">
-          <div className="relative">
-            {!isUserSpeaking && (
-              <span className="absolute inset-0 rounded-full bg-blue-500 opacity-75 animate-ping" />
-            )}
-            <Image
-              src="/Ai.ico"
-              alt="AI Icon"
-              width={90}
-              height={90}
-              className="w-[60px] h-[60px] rounded-full object-cover"
-            />
+    <main className="!min-h-screen bg-slate-950 !px-4 !py-6 text-white sm:!px-8">
+      <div className="!mx-auto flex !min-h-[calc(100vh-48px)] !max-w-6xl flex-col">
+        <header className="flex flex-col justify-between !gap-4 rounded-2xl border border-white/10 bg-white/10 !p-5 backdrop-blur md:flex-row md:items-center">
+          <div>
+            <div className="inline-flex items-center !gap-2 rounded-full bg-cyan-400/10 !px-3 !py-1 text-xs font-medium text-cyan-200">
+              <Sparkles className="!h-3.5 !w-3.5" />
+              AI Interview Session
+            </div>
+            <h1 className="!mt-3 text-2xl font-bold">{interviewInfo?.interviewData?.jobPosition || 'Interview in progress'}</h1>
           </div>
-          <h2>AI Recruiter</h2>
-        </div>
-
-        {/* Candidate */}
-        <div className="bg-white w-full max-w-sm h-72 rounded-lg border shadow-sm flex flex-col gap-3 items-center justify-center">
-          <div className="relative">
-            {isUserSpeaking && (
-              <span className="absolute inset-0 rounded-full bg-blue-500 opacity-75 animate-ping" />
-            )}
-            {user?.picture ? (
-              <Image
-                src={user?.picture}
-                alt="Candidate"
-                width={90}
-                height={90}
-                className="w-[60px] h-[60px] rounded-full object-cover"
-                priority
-              />
-            ) : (
-              <span className="text-gray-400 text-sm">No Picture Available</span>
-            )}
+          <div className="flex items-center !gap-3 rounded-xl bg-black/20 !px-4 !py-3">
+            <Timer className="!h-5 !w-5 text-cyan-200" />
+            <TimerComponent start={true} />
           </div>
-          <h2>{interviewInfo?.userName}</h2>
-        </div>
-      </div>
+        </header>
 
-      {/* Controls */}
-      <div className="w-full flex justify-center items-center my-6">
-        <div className="flex gap-6">
-          <Mic onClick={() => vapiRef.current?.setMuted(isMuted => !isMuted)} className="!h-12 !w-12 !p-3 bg-gray-500 text-white rounded-full cursor-pointer" />
-          <AlertConfirmation stopInterview={StopInterview}>
-            <Phone className="!h-12 !w-12 !p-3 bg-red-600 text-white rounded-full cursor-pointer" />
-          </AlertConfirmation>
-        </div>
-      </div>
+        <section className="grid flex-1 items-center !gap-5 !py-8 lg:grid-cols-2">
+          <div className={`relative rounded-2xl border !p-8 text-center transition ${
+            isAiSpeaking ? 'border-cyan-300 bg-cyan-400/10 shadow-[0_0_60px_rgba(34,211,238,0.2)]' : 'border-white/10 bg-white/5'
+          }`}>
+            <div className="relative !mx-auto flex !h-36 !w-36 items-center justify-center">
+              {isAiSpeaking && (
+                <>
+                  <span className="absolute inset-0 rounded-full bg-cyan-300/25 animate-ping" />
+                  <span className="absolute inset-4 rounded-full bg-cyan-300/20 animate-pulse" />
+                </>
+              )}
+              <Image src="/Ai.ico" alt="AI recruiter" width={96} height={96} className="relative !h-24 !w-24 rounded-full object-cover ring-4 ring-white/15" />
+            </div>
+            <h2 className="!mt-6 text-xl font-bold">AI Recruiter</h2>
+            <p className="!mt-2 text-sm text-slate-300">{isAiSpeaking ? 'Speaking now' : 'Listening for responses'}</p>
+            <div className="!mt-5 inline-flex items-center !gap-2 rounded-full bg-white/10 !px-4 !py-2 text-sm text-slate-200">
+              <Volume2 className="!h-4 !w-4" />
+              Voice assistant
+            </div>
+          </div>
 
-      <h2 className="text-gray-400 text-sm text-center !mt-3">Interview in Progress...</h2>
-    </div>
+          <div className={`rounded-2xl border !p-8 text-center transition ${
+            !isAiSpeaking ? 'border-emerald-300 bg-emerald-400/10' : 'border-white/10 bg-white/5'
+          }`}>
+            <div className="!mx-auto flex !h-36 !w-36 items-center justify-center rounded-full bg-white text-4xl font-bold text-slate-950 ring-4 ring-white/15">
+              {(interviewInfo?.userName || 'C').charAt(0).toUpperCase()}
+            </div>
+            <h2 className="!mt-6 text-xl font-bold">{interviewInfo?.userName || 'Candidate'}</h2>
+            <p className="!mt-2 text-sm text-slate-300">{isAiSpeaking ? 'Candidate microphone ready' : 'Your turn to answer'}</p>
+          </div>
+        </section>
+
+        <footer className="flex flex-col items-center !gap-4 rounded-2xl border border-white/10 bg-white/10 !p-5 backdrop-blur">
+          <p className="text-sm text-slate-300">{isMuted ? 'Microphone muted' : 'Interview in progress'}</p>
+          <div className="flex items-center !gap-4">
+            <button
+              onClick={toggleMute}
+              className={`flex !h-14 !w-14 items-center justify-center rounded-full transition ${
+                isMuted ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-white/15 text-white hover:bg-white/25'
+              }`}
+              aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+            >
+              {isMuted ? <MicOff className="!h-6 !w-6" /> : <Mic className="!h-6 !w-6" />}
+            </button>
+            <AlertConfirmation stopInterview={StopInterview}>
+              <button className="flex !h-14 !w-14 items-center justify-center rounded-full bg-red-600 text-white shadow-lg shadow-red-950/30 transition hover:bg-red-700" aria-label="End interview">
+                <Phone className="!h-6 !w-6 rotate-[135deg]" />
+              </button>
+            </AlertConfirmation>
+          </div>
+        </footer>
+      </div>
+    </main>
   );
 }
 

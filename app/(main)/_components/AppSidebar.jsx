@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { LogOut, Plus } from "lucide-react";
 
 import {
     Sidebar,
@@ -11,64 +11,82 @@ import {
     SidebarFooter,
     SidebarGroup,
     SidebarHeader,
+    SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarMenu,
 } from "@/components/ui/sidebar";
-
 import { Button } from '@/components/ui/button';
-import { Plus } from "lucide-react";
 import { SideBarOptions } from '@/services/Constant';
+import { supabase } from '@/services/supabaseClient';
 
 export function AppSidebar() {
     const path = usePathname();
+    const router = useRouter();
 
-    useEffect(() => {
-        console.log("Current path:", path);
-    }, [path]);
+    const onLogout = async () => {
+        await supabase.auth.signOut();
+        router.push('/auth');
+    };
 
     return (
-        <Sidebar>
-            {/* Header */}
-            <SidebarHeader className="!flex !flex-col items-center !mt-5">
-                <Image
-                    src="/logo.png"
-                    alt="logo"
-                    width={200}
-                    height={100}
-                    className="!w-[150px] !mb-2 !py-2"
-                    priority 
-                />
-                <Button className="!p-2 w-[250px] !mt-3">
-                    <Plus className="!mr-2" />
-                    Create New Interview
+        <Sidebar className="border-r border-slate-200 bg-white">
+            <SidebarHeader className="!px-5 !py-6">
+                <Link href="/dashboard" className="flex items-center">
+                    <Image
+                        src="/logo.png"
+                        alt="IntelliHire logo"
+                        width={180}
+                        height={70}
+                        className="!w-[145px] object-contain"
+                        priority
+                    />
+                </Link>
+
+                <Button asChild className="venom-button group/button !mt-6 !h-11 !w-full overflow-hidden rounded-lg border border-slate-950 !bg-white !text-slate-950 hover:!text-white">
+                    <Link href="/dashboard/create-interview">
+                        <Plus className="plus-rotate !h-4 !w-4" />
+                        New Interview
+                    </Link>
                 </Button>
             </SidebarHeader>
 
-            {/* Navigation */}
-            <SidebarContent>
+            <SidebarContent className="!px-3">
                 <SidebarGroup>
-                    <SidebarMenu>
-                        {SideBarOptions.map((option, index) => (
-                            <SidebarMenuItem key={index} className="!p-1 !mt-2 !ml-1">
-                                <SidebarMenuButton asChild className="!p-0">
-                                    <Link
-                                        href={option.path}
-                                        className={`!p-2 flex items-center gap-3 rounded-md transition-colors duration-200
-                                                    ${path === option.path ? 'bg-blue-100 ' : '!text-gray-700 hover:!bg-gray-200'}`}
-                                    >-
-                                        <option.icon className="!w-5 !h-5" />
-                                        <span className="!text-sm">{option.name}</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        ))}
+                    <SidebarMenu className="!space-y-1">
+                        {SideBarOptions.map((option) => {
+                            const active = path === option.path || path.startsWith(`${option.path}/`);
+                            return (
+                                <SidebarMenuItem key={option.path}>
+                                    <SidebarMenuButton asChild className="!p-0">
+                                        <Link
+                                            href={option.path}
+                                            className={`flex !h-11 items-center !gap-3 rounded-lg !px-3 text-sm font-medium transition-colors ${
+                                                active
+                                                    ? '!bg-slate-950 !text-white hover:!bg-slate-500 hover:!text-white shadow-sm'
+                                                    : '!text-slate-900 hover:!bg-slate-200 hover:!text-slate-950'
+                                            }`}
+                                        >
+                                            <option.icon className="!h-4 !w-4" />
+                                            <span>{option.name}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            );
+                        })}
                     </SidebarMenu>
                 </SidebarGroup>
             </SidebarContent>
 
-            {/* Footer */}
-            <SidebarFooter />
+            <SidebarFooter className="!p-4">
+                <Button
+                    variant="outline"
+                    onClick={onLogout}
+                    className="!h-11 !w-full justify-center rounded-lg border-slate-200 !text-slate-700 hover:!bg-red-50 hover:!text-red-700"
+                >
+                    <LogOut className="!h-4 !w-4" />
+                    Logout
+                </Button>
+            </SidebarFooter>
         </Sidebar>
     );
 }

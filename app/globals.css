@@ -25,6 +25,89 @@
 .bounce-fade {
   animation: bounceFade 1.2s infinite;
 }
+
+.venom-button {
+  position: relative;
+  isolation: isolate;
+}
+
+.venom-button::before {
+  content: "";
+  position: absolute;
+  inset: 0 50% 0 0;
+  z-index: -1;
+  background: #020617;
+  border-radius: inherit;
+  transform: translateX(-101%);
+  transition: transform 900ms cubic-bezier(.22,1,.36,1);
+}
+
+.venom-button:hover::before {
+  transform: translateX(0);
+}
+
+.venom-button::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 50%;
+  z-index: -1;
+  background: #020617;
+  border-radius: inherit;
+  transform: translateX(101%);
+  transition: transform 900ms cubic-bezier(.22,1,.36,1);
+}
+
+.venom-button:hover::after {
+  transform: translateX(0);
+}
+
+.plus-rotate {
+  transition: transform 700ms cubic-bezier(.22,1,.36,1);
+}
+
+.group:hover .plus-rotate,
+.group\/button:hover .plus-rotate {
+  transform: rotate(180deg);
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 90%);
+}
+
+.voice-bar {
+  animation: voicePulse 1.25s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+@keyframes voicePulse {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.activity-row {
+  animation: activityFloat 4.2s ease-in-out infinite;
+}
+
+@keyframes activityFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
 @layer base {
   :root {
     --sidebar: oklch(0.985 0 0);
@@ -312,4 +395,3 @@ a {
     @apply bg-background text-foreground;
   }
 }
-

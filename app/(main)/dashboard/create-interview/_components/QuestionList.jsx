@@ -1,16 +1,14 @@
-"use client"
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { toast } from 'sonner';
-import { Loader2Icon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import QuestionListContainer from './QuestionListContainer';
-import { supabase } from '@/services/supabaseClient'
-import { useUser } from '@/app/Provider';
-import { v4 as uuidv4 } from 'uuid';
-import { BookmarkCheck } from 'lucide-react'; 
-import { ListCheck } from 'lucide-react';
-import InterviewLink from './InterviewLink';
+"use client";
+
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { BookmarkCheck, Loader2Icon, RefreshCw, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/services/supabaseClient";
+import { useUser } from "@/app/Provider";
+import QuestionListContainer from "./QuestionListContainer";
 
 function QuestionList({ formData, onCreateLink }) {
   const [loading, setLoading] = useState(false);
@@ -19,120 +17,164 @@ function QuestionList({ formData, onCreateLink }) {
   const { user } = useUser();
 
   useEffect(() => {
-    if (formData && formData.jobPosition) {
+    if (formData?.jobPosition) {
       GenerateQuestionList();
-
     }
   }, [formData]);
 
-
-
-
+  const getToken = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    return sessionData?.session?.access_token;
+  };
 
   const GenerateQuestionList = async () => {
+    if (loading) return;
     setLoading(true);
+
     try {
-      console.log('Form data:', formData);
-      const response = await axios.post('/api/ai-model', { ...formData });
-      setQuestions(response.data.interviewQuestions);
-      setLoading(false);
+      const token = await getToken();
+      if (!token) {
+        toast.error("Please sign in again before generating questions.");
+        return;
+      }
 
-      // const response = await axios.post('/api/ai-model', { ...formData });
+      const response = await axios.post(
+        "/api/ai-model",
+        { ...formData },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      // console.log('Raw response:', response.data.content);
-
-      // const finalContent = response.data.content
-      //   .replace("```json", "")
-      //   .replace("```", "")
-      //   .trim();
-
-      // const parsed = JSON.parse(finalContent);
-      // console.log('Parsed content:', parsed);
-
-      // setQuestions(parsed?.interviewQuestions || []);
+      setQuestions(response.data.interviewQuestions || []);
+      if (response.data?.usage?.remainingCredits !== undefined) {
+        toast.success(`Questions generated. Credits left: ${response.data.usage.remainingCredits}`);
+      }
     } catch (error) {
-      toast.error('Failed to generate questions.');
-      console.error('Error parsing content:', error);
+      const message = error?.response?.data?.error || "Failed to generate questions.";
+      toast.error(message);
+      console.error("Question generation failed:", error);
+    } finally {
       setLoading(false);
     }
-
-    // try {
-    //   console.log(formData)
-    //   const response = await axios.post('/api/ai-model',
-    //     {
-    //       ...formData
-    //     }
-    //   );
-    //   // const response = null;
-
-    //   console.log("Content" + response.data.content)
-    //   // const Content = response.data.content;
-    //   const finalContent = response.data.content
-    //     .replace("```json", "")
-    //     .replace("```", "")
-    //     .trim();      // setQuestions(JSON.parse(Content));
-    //   setQuestions(JSON.parse(finalContent)?.interviewQuestions);
-    //   setLoading(false);
-    // } catch (error) {
-    //   toast.error('Server error, try again.');
-    //   // console.error("Error fetching questions:", error);
-    // }
   };
-  const
-    onFinish = async () => {
-      setSaving(true)
+
+  const onFinish = async () => {
+    if (saving || questions.length === 0) return;
+    setSaving(true);
+
+    try {
       const interview_id = uuidv4();
       const { data, error } = await supabase
-        .from('Interviews')
+        .from("Interviews")
         .insert([
           {
             ...formData,
             Questions: questions,
             userEmail: user?.email,
-            interview_id: interview_id
+            interview_id,
           },
-
-
         ])
-        .select()
+        .select();
+
+      if (error) {
+        toast.error(error.message || "Failed to save interview.");
+        return;
+      }
+
+      const token = await getToken();
+      if (token) {
+        axios
+          .post(
+            "/api/interviews/record-created",
+            { interview_id },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+          .catch((recordError) => {
+            console.warn("Interview usage tracking failed:", recordError?.response?.data || recordError);
+          });
+      }
+
+      if (data?.length) {
+        toast.success("Interview link created.");
+      }
+      onCreateLink(interview_id);
+    } finally {
       setSaving(false);
-      onCreateLink(interview_id)
-      // console.log(data)
-
     }
-
+  };
 
   return (
-    <div>
-      {loading && (
-        <div className='!p-5 !bg-blue-50 !rounded-xl !border !border-gray-200 !flex !gap-5 !items-center'>
-          <Loader2Icon className="!animate-spin !w-6 !h-6 !text-blue-600" />
-          <div>
-            <h2 className="!font-semibold !text-blue-800">Generating Questions...</h2>
-            <p className="!text-sm !text-gray-700">Our AI is crafting personalized questions based on your job role.</p>
+    <div className="!space-y-5">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 bg-slate-950 !p-6 text-white">
+          <div className="flex flex-col justify-between !gap-4 md:flex-row md:items-center">
+            <div>
+              <div className="inline-flex items-center !gap-2 rounded-full bg-white/10 !px-3 !py-1 text-xs font-semibold text-cyan-100">
+                <Sparkles className="!h-3.5 !w-3.5" />
+                Step 2
+              </div>
+              <h2 className="!mt-3 text-2xl font-bold">Question generation studio</h2>
+              <p className="!mt-2 text-sm text-slate-300">
+                AI is preparing a structured interview for {formData?.jobPosition || "this role"}.
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/10 !px-4 !py-3">
+              <p className="text-xs text-slate-300">Duration</p>
+              <p className="!mt-1 text-lg font-bold">{formData?.duration || "-"} min</p>
+            </div>
           </div>
         </div>
-      )}
 
-      {questions?.length > 0 &&
-        <div>
-          <QuestionListContainer questions={questions} />
+        <div className="!p-5 sm:!p-6">
+          {loading && (
+            <div className="rounded-2xl border border-cyan-100 bg-cyan-50 !p-5">
+              <div className="flex items-center !gap-4">
+                <div className="flex !h-12 !w-12 items-center justify-center rounded-xl bg-white text-cyan-700 shadow-sm">
+                  <Loader2Icon className="!h-6 !w-6 animate-spin" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-950">Generating questions...</h3>
+                  <p className="!mt-1 text-sm text-slate-600">
+                    Building a balanced set across the selected interview types.
+                  </p>
+                </div>
+              </div>
+
+              <div className="!mt-5 grid !gap-3">
+                {[1, 2, 3].map((item) => (
+                  <div key={item} className="animate-pulse rounded-xl bg-white !p-4">
+                    <div className="!h-4 !w-3/4 rounded-full bg-slate-200" />
+                    <div className="!mt-3 !h-3 !w-1/3 rounded-full bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!loading && questions.length > 0 && <QuestionListContainer questions={questions} />}
         </div>
-      }
-      <div className='flex justify-end'>
+      </section>
+
+      <div className="flex flex-col justify-end !gap-3 sm:flex-row">
         <Button
-          className='!p-2 !mt-4 !bg-black !text-white !rounded !transition-transform !duration-200 !cursor-pointer hover:!bg-white hover:!text-black active:!scale-95 hover:!border hover:!border-black'
-          onClick={() => onFinish()}
+          variant="outline"
+          className="!h-11 rounded-lg border-slate-300 hover:!bg-slate-100 hover:!text-slate-950"
+          onClick={GenerateQuestionList}
+          disabled={saving || loading}
         >
-          {saving && <ListCheck />}
-          Create Interview Link and Save
+          <RefreshCw className={`!h-4 !w-4 ${loading ? "animate-spin" : ""}`} />
+          Regenerate
         </Button>
-
-
+        <Button
+          className="!h-11 rounded-lg !bg-slate-950 !text-white hover:!bg-slate-800"
+          onClick={onFinish}
+          disabled={saving || loading || questions.length === 0}
+        >
+          {saving ? <Loader2Icon className="!h-4 !w-4 animate-spin" /> : <BookmarkCheck className="!h-4 !w-4" />}
+          Create interview link and save
+        </Button>
       </div>
     </div>
   );
-
 }
 
 export default QuestionList;

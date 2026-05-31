@@ -75,31 +75,31 @@ function Form({ OnhandleInputChange, GoToNext }) {
             <div className="flex flex-col divide-y divide-gray-200">
               <SelectItem
                 value="5"
-                className="!p-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="!p-2 hover:!bg-gray-100 transition-colors cursor-pointer"
               >
                 5 Min
               </SelectItem>
               <SelectItem
                 value="15"
-                className="!p-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="!p-2 hover:!bg-gray-100 transition-colors cursor-pointer"
               >
                 15 Min
               </SelectItem>
               <SelectItem
                 value="30"
-                className="!p-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="!p-2 hover:!bg-gray-100 transition-colors cursor-pointer"
               >
                 30 Min
               </SelectItem>
               <SelectItem
                 value="45"
-                className="!p-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="!p-2 hover:!bg-gray-100 transition-colors cursor-pointer"
               >
                 45 Min
               </SelectItem>
               <SelectItem
                 value="60"
-                className="!p-2 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="!p-2 hover:!bg-gray-100 transition-colors cursor-pointer"
               >
                 60 Min
               </SelectItem>
@@ -132,7 +132,7 @@ function Form({ OnhandleInputChange, GoToNext }) {
           flex items-center cursor-pointer gap-2 !mt-2 !p-1 !px-2 
           border border-gray-300 rounded-md transition-all duration-300 ease-in-out 
           hover:border-primary 
-          ${isSelected ? 'bg-black text-white' : 'bg-gray-200 text-black hover:bg-white'}
+          ${isSelected ? '!bg-black !text-white' : '!bg-gray-200 !text-black hover:!bg-white'}
         `}
                 onClick={() =>
                   AddInterviewType(type.title)
@@ -149,7 +149,7 @@ function Form({ OnhandleInputChange, GoToNext }) {
       </div>
       <div className='flex justify-end !mt-8'>
         <Button
-          className="!p-2 bg-black text-white hover:bg-gray-800 hover:scale-[1.02] transition-all duration-300 ease-in-out"
+          className="!p-2 !bg-black !text-white hover:!bg-gray-800 hover:scale-[1.02] transition-all duration-300 ease-in-out"
           onClick={() => GoToNext()}
         >
           Generate Question <ArrowRight />

@@ -38,9 +38,9 @@ function CreateInterview() {
   }
   return (
     <div className="!mt-7 !px-4 sm:!px-6 md:!px-10 lg:!px-20 xl:!px-32 2xl:!px-48">
-      <div className="flex gap-4 items-center">
-        <ArrowLeft onClick={() => router.back()} className="w-6 h-6 text-gray-700 cursor-pointer" />
-        <h2 className="font-bold !text-lg sm:!text-xl md:!text-2xl lg:!text-2xl xl:!text-2xl">
+      <div className="flex items-center !gap-4">
+        <ArrowLeft onClick={() => router.back()} className="!h-6 !w-6 cursor-pointer text-gray-700" />
+        <h2 className="text-lg font-bold sm:text-xl md:text-2xl">
           Create New Interview
         </h2>
       </div>

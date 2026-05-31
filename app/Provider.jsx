@@ -15,42 +15,28 @@ function Provider({ children } = {}) {
 
     }, [])
     const CreateNewUser = () => {
-        supabase.auth.getUser().then(async ({ data: { user } }) => {
+        supabase.auth.getSession().then(async ({ data }) => {
+            const token = data?.session?.access_token;
+            if (!token) return;
 
-            // Check if user exists
+            try {
+                const response = await fetch('/api/users/sync', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
 
-            let { data: Users, error } = await supabase
-                .from('Users')
-                .select("*")
-                .eq('email', user?.email);
-
-            console.log(Users)
-
-            if (Users?.length == 0) {
-                // If user does not exist, create a new user
-
-                const { data, error } = await supabase
-                    .from("Users")
-                    .insert([
-                        {
-                            name: user?.user_metadata?.name,
-                            email: user?.email,
-                            picture: user?.user_metadata?.picture,
-                        }
-
-                    ])
-                console.log(data);
-                if (error) {
-                    console.error("Insert failed:", error.message);
-                } else {
-                    console.log("User inserted:", data);
+                const payload = await response.json();
+                if (!response.ok) {
+                    console.error("User sync failed:", payload?.error);
+                    return;
                 }
-                setUser(data[0]);
-                return;
 
-
+                setUser(payload.user);
+            } catch (error) {
+                console.error("User sync failed:", error);
             }
-            setUser(Users[0]);
         })
     }
 

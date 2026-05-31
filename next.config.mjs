@@ -5,6 +5,7 @@ const nextConfig = {
     '10.0.16.241',
     '10.0.16.241:3001',
   ],
+  
   images: {
     remotePatterns: [
       {
@@ -19,3 +20,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
+// outputFileTracingRoot add this 

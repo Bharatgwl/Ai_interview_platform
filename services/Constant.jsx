@@ -22,7 +22,7 @@ export const SideBarOptions = [
         path: '/billing'
     },
     {
-        name: 'Setting',
+        name: 'Settings',
         icon: Settings,
         path: '/settings'
     },

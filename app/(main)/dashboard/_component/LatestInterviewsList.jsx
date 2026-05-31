@@ -1,52 +1,65 @@
-"use client"
-import { React, useState, useEffect } from 'react'
-import { Camera, AnotherIcon, Video } from "lucide-react";
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { Camera, Plus } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/services/supabaseClient';
 import { useUser } from '@/app/Provider';
 import InterviewCard from './InterviewCard';
 import Link from 'next/link';
+
 function LatestInterviewsList() {
     const [interviewList, setInterviewList] = useState([]);
-    const { user } = useUser()
+    const { user } = useUser();
 
     useEffect(() => {
-        user && GetInterviewList()
-    }, [user])
+        if (user) GetInterviewList();
+    }, [user]);
+
     const GetInterviewList = async () => {
-        let { data: Interviews, error } = await supabase
+        const { data: Interviews, error } = await supabase
             .from('Interviews')
             .select('*')
             .eq('userEmail', user?.email)
-            .order('id', {ascending:false})
-            .limit(6)
-        console.log(Interviews)
-        setInterviewList(Interviews)
-    }
-   
-   
-    return (
-        <div className='!my-5'>
-            <h2 className='font-bold text-2xl'>Previously created interviews</h2>
+            .order('id', { ascending: false })
+            .limit(6);
 
-            {interviewList?.length == 0 &&
-                <div className='flex flex-col justify-center items-center !h-40 bg-gray-200 rounded-lg'>
-                    <Camera className='!h-10 !w-10 text-primary' />
-                    <h2 className='!mt-3 font-semibold text-gray-500'>No Interviews Created Yet!</h2>
-                    <Link href="/dashboard/create-interview">
-                        <Button className='!mt-1 !p-3 cursor-pointer'>+ Create New Interview</Button>
-                    </Link>                
+        if (!error) setInterviewList(Interviews || []);
+    };
+
+    return (
+        <section>
+            <div className="!mb-4 flex items-end justify-between !gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-950">Recent interviews</h2>
+                    <p className="text-sm text-slate-500">Copy links, send invitations, and continue managing candidate sessions.</p>
                 </div>
-            }
-            {interviewList &&
-                < div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 !gap-5 !mt-5'>
-                    {interviewList.map((interview, index) => (
-                        <InterviewCard interview={interview} key={index} />
+                <Button asChild variant="outline" className="hidden rounded-lg !bg-white !p-3 !text-black hover:!bg-black hover:!text-white sm:flex">
+                    <Link href="/all-interview">View all</Link>
+                </Button>
+            </div>
+
+            {interviewList?.length === 0 ? (
+                <div className="flex !min-h-52 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white !p-8 text-center">
+                    <Camera className="!h-10 !w-10 text-slate-400" />
+                    <h3 className="!mt-4 font-semibold text-slate-950">No interviews created yet</h3>
+                    <p className="!mt-2 !max-w-md text-sm text-slate-500">Create your first AI interview and share it with a candidate in minutes.</p>
+                    <Button asChild className="group !mt-5 rounded-lg !bg-slate-950 !p-2 !text-white shadow hover:!bg-white hover:!text-black hover:border">
+                        <Link href="/dashboard/create-interview">
+                            <Plus className="plus-rotate !h-4 !w-4" />
+                            Create interview
+                        </Link>
+                    </Button>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 !gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {interviewList.map((interview) => (
+                        <InterviewCard interview={interview} key={interview.id || interview.interview_id} />
                     ))}
                 </div>
-            }
-        </div>
-    )
+            )}
+        </section>
+    );
 }
 
-export default LatestInterviewsList
+export default LatestInterviewsList;

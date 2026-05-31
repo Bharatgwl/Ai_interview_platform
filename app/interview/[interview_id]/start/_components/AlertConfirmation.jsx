@@ -1,4 +1,5 @@
-import React from 'react'
+import React from 'react';
+import { AlertTriangle, PhoneOff } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -9,43 +10,45 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 function AlertConfirmation({ children, stopInterview }) {
     return (
-        <div className="w-full ">
-            <AlertDialog className="">
-                <AlertDialogTrigger asChild>
-                    <button className="text-sm font-medium text-red-600 hover:underline">
-                        {children}
-                    </button>
-                </AlertDialogTrigger>
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                {children}
+            </AlertDialogTrigger>
 
-                <AlertDialogContent className="max-w-md rounded-2xl shadow-lg bg-white dark:bg-zinc-900 !m-2">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="text-xl font-semibold text-red-600">
-                            Are you absolutely sure?
+            <AlertDialogContent className="!max-w-md rounded-2xl border border-slate-200 bg-white !p-0 shadow-2xl">
+                <div className="border-b border-slate-100 !p-6">
+                    <div className="flex !h-12 !w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                        <AlertTriangle className="!h-6 !w-6" />
+                    </div>
+                    <AlertDialogHeader className="!mt-5 text-left">
+                        <AlertDialogTitle className="text-xl font-bold text-slate-950">
+                            End this interview?
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="text-sm text-gray-600 dark:text-gray-300">
-                            This action cannot be undone. Your interview will end.
+                        <AlertDialogDescription className="!mt-2 text-sm leading-6 text-slate-500">
+                            The call will disconnect and the app will generate feedback from the conversation captured so far.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                </div>
 
-                    <AlertDialogFooter className="flex justify-end gap-2">
-                        <AlertDialogCancel className="!px-4 !py-2 !m-1   rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 dark:text-white dark:border-zinc-700 dark:hover:bg-zinc-800">
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={()=>stopInterview()}
-                            className="!px-4 !py-2 !m-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all cursor-pointer"
-                        >
-                            Continue
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
-    )
+                <AlertDialogFooter className="flex !gap-3 !p-4 sm:justify-end">
+                    <AlertDialogCancel className="!m-0 rounded-lg border-slate-200 !px-4">
+                        Keep going
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={stopInterview}
+                        className="!m-0 rounded-lg bg-red-600 !px-4 text-white hover:bg-red-700"
+                    >
+                        <PhoneOff className="!h-4 !w-4" />
+                        End interview
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
 }
 
-export default AlertConfirmation
+export default AlertConfirmation;

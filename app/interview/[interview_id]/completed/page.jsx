@@ -26,9 +26,9 @@ const CompletedPage = () => {
         <div className="!mt-6">
           <a
             href="/dashboard"
-            className="flex items-center cursor-pointer gap-2 !mt-2 !p-1 !px-2 
+            className="flex items-center cursor-pointer !gap-2 !mt-2 !p-1 !px-2 
     border border-gray-300 rounded-md transition-all duration-300 ease-in-out 
-    hover:border-primary hover:bg-black hover:!text-white"
+    hover:border-primary hover:bg-black hover:text-white"
           >
             Return to Dashboard
           </a>
